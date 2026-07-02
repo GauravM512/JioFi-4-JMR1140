@@ -1,0 +1,207 @@
+#!/bin/sh
+# /etc/init.d/start_repeater
+# JioFi 4 AP+STA Wi-Fi Repeater Startup Script
+
+set_led_brightness() {
+    LED_NAME="$1"
+    BRIGHTNESS="$2"
+    if [ "$BRIGHTNESS" -gt 0 ]; then
+        MAX=$(cat /sys/class/leds/$LED_NAME/max_brightness 2>/dev/null || echo 255)
+        echo "$MAX" > /sys/class/leds/$LED_NAME/brightness 2>/dev/null
+    else
+        echo 0 > /sys/class/leds/$LED_NAME/brightness 2>/dev/null
+    fi
+}
+
+case "$1" in
+  start)
+    echo "=== Starting JioFi Wi-Fi Repeater ==="
+    
+    # 1. Redirect blocking /dev/random to non-blocking /dev/urandom
+    rm -f /dev/random
+    ln -sf /dev/urandom /dev/random
+    
+    # 2. Load custom driver with power management disabled
+    rmmod rtl8189es 2>/dev/null
+    insmod /usr/lib/modules/3.18.20/kernel/drivers/net/rtl8192cd/rtl8189es.ko rtw_power_mgnt=0 rtw_ips_mode=0
+    
+    # 3. Wait for interfaces to register
+    sleep 2
+    
+    # 4. Bring wlan interfaces up
+    ifconfig wlan0 up
+    ifconfig wlan1 up
+    
+    # 5. Determine config files (use /data if present, else fallback to /etc)
+    WPA_CONF="/etc/wpa_supplicant.conf"
+    if [ -f "/data/wpa_supplicant.conf" ]; then
+        WPA_CONF="/data/wpa_supplicant.conf"
+    fi
+    
+    HOSTAPD_CONF="/etc/hostapd.conf"
+    if [ -f "/data/hostapd.conf" ]; then
+        HOSTAPD_CONF="/data/hostapd.conf"
+    fi
+    
+    # 6. Start wpa_supplicant on wlan0
+    killall wpa_supplicant 2>/dev/null
+    wpa_supplicant -B -i wlan0 -c "$WPA_CONF"
+    
+    # 7. Wait for association, then configure IP (DHCP or Static)
+    (
+        sleep 5
+        IP_MODE="dhcp"
+        IP_ADDR=""
+        NETMASK=""
+        GATEWAY=""
+        if [ -f "/data/ip_config.conf" ]; then
+            . /data/ip_config.conf
+        fi
+        
+        killall udhcpc 2>/dev/null
+        if [ "$IP_MODE" = "static" ] && [ -n "$IP_ADDR" ] && [ -n "$NETMASK" ] && [ -n "$GATEWAY" ]; then
+            ifconfig wlan0 "$IP_ADDR" netmask "$NETMASK"
+            route add default gw "$GATEWAY" wlan0
+        else
+            # Default to DHCP client
+            udhcpc -i wlan0 -s /etc/udhcpc.d/50default -b &
+        fi
+    ) &
+    
+    # 8. Start hostapd on wlan1
+    mkdir -p /var/run/hostapd
+    if ! grep -q "^ctrl_interface=" "$HOSTAPD_CONF" 2>/dev/null; then
+        echo "ctrl_interface=/var/run/hostapd" >> "$HOSTAPD_CONF"
+    fi
+    killall hostapd 2>/dev/null
+    hostapd -B "$HOSTAPD_CONF"
+    
+    # 9. Set up IP and DHCP server on wlan1 (Routed AP mode)
+    brctl delif bridge0 wlan1 2>/dev/null || true
+    ifconfig wlan1 192.168.224.1 netmask 255.255.255.0
+    kill $(cat /tmp/dnsmasq_wlan1.pid 2>/dev/null) 2>/dev/null
+    dnsmasq --dhcp-authoritative --pid-file=/tmp/dnsmasq_wlan1.pid --dhcp-leasefile=/tmp/dnsmasq_wlan1.leases -u root -i wlan1 -z --dhcp-range=wlan1,192.168.224.20,192.168.224.60,255.255.255.0,12h --dhcp-option=6,8.8.8.8,1.1.1.1
+    
+    # 10. Configure IP forwarding and NAT
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    iptables -F FORWARD
+    iptables -P FORWARD ACCEPT
+    iptables -t nat -F
+    iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
+    
+    # 11. Start lightweight HTTP server for Repeater Web UI
+    killall httpd 2>/dev/null
+    /sbin/httpd -h /www
+    
+    # 12. Start background LED indicator manager
+    (
+        echo none > /sys/class/leds/rssi_r/trigger 2>/dev/null
+        echo none > /sys/class/leds/rssi_g/trigger 2>/dev/null
+        echo none > /sys/class/leds/rssi_b/trigger 2>/dev/null
+        echo none > /sys/class/leds/wifi_r/trigger 2>/dev/null
+        echo none > /sys/class/leds/wifi_g/trigger 2>/dev/null
+        echo none > /sys/class/leds/wifi_b/trigger 2>/dev/null
+        
+        while true; do
+            # --- Update RSSI LED (Upstream wlan0 connection quality) ---
+            IP=$(ifconfig wlan0 2>/dev/null | grep 'inet addr:')
+            if [ -n "$IP" ]; then
+                QUAL=$(cat /proc/net/wireless 2>/dev/null | grep wlan0 | awk '{print $3}' | cut -d. -f1)
+                if [ -n "$QUAL" ]; then
+                    SIGNAL=$((QUAL * 100 / 70))
+                    echo none > /sys/class/leds/rssi_r/trigger 2>/dev/null
+                    echo none > /sys/class/leds/rssi_g/trigger 2>/dev/null
+                    if [ $SIGNAL -ge 70 ]; then
+                        set_led_brightness rssi_r 0
+                        set_led_brightness rssi_g 255
+                        set_led_brightness rssi_b 0
+                    elif [ $SIGNAL -ge 35 ]; then
+                        set_led_brightness rssi_r 255
+                        set_led_brightness rssi_g 255
+                        set_led_brightness rssi_b 0
+                    else
+                        set_led_brightness rssi_r 255
+                        set_led_brightness rssi_g 0
+                        set_led_brightness rssi_b 0
+                    fi
+                else
+                    echo timer > /sys/class/leds/rssi_r/trigger 2>/dev/null
+                    echo 250 > /sys/class/leds/rssi_r/delay_on 2>/dev/null
+                    echo 250 > /sys/class/leds/rssi_r/delay_off 2>/dev/null
+                    set_led_brightness rssi_g 0
+                    set_led_brightness rssi_b 0
+                fi
+            else
+                echo timer > /sys/class/leds/rssi_r/trigger 2>/dev/null
+                echo 500 > /sys/class/leds/rssi_r/delay_on 2>/dev/null
+                echo 500 > /sys/class/leds/rssi_r/delay_off 2>/dev/null
+                set_led_brightness rssi_g 0
+                set_led_brightness rssi_b 0
+            fi
+            
+            # --- Update Wi-Fi LED (Local wlan1 hotspot state & clients) ---
+            echo none > /sys/class/leds/wifi_r/trigger 2>/dev/null
+            echo none > /sys/class/leds/wifi_g/trigger 2>/dev/null
+            echo none > /sys/class/leds/wifi_b/trigger 2>/dev/null
+            if pidof hostapd >/dev/null; then
+                # Get associated stations from hostapd to see if any client is active
+                ASSOCIATED_MACS=$(hostapd_cli -i wlan1 all_sta 2>/dev/null | grep -E '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}')
+                if [ -n "$ASSOCIATED_MACS" ]; then
+                    # Client(s) connected: Cyan (Green + Blue)
+                    set_led_brightness wifi_r 0
+                    set_led_brightness wifi_g 255
+                    set_led_brightness wifi_b 255
+                else
+                    # Broadcast active, no clients: Solid Blue
+                    set_led_brightness wifi_r 0
+                    set_led_brightness wifi_g 0
+                    set_led_brightness wifi_b 255
+                fi
+            else
+                # AP broadcast disabled: Solid Red
+                set_led_brightness wifi_r 255
+                set_led_brightness wifi_g 0
+                set_led_brightness wifi_b 0
+            fi
+            
+            sleep 5
+        done
+    ) &
+    echo $! > /var/run/repeater_leds.pid
+
+    echo "=== JioFi Repeater is Active ==="
+    ;;
+  stop)
+    echo "Stopping JioFi Wi-Fi Repeater"
+    kill $(cat /var/run/repeater_leds.pid 2>/dev/null) 2>/dev/null
+    rm -f /var/run/repeater_leds.pid
+    
+    # Turn off RSSI and Wi-Fi LEDs on stop
+    echo none > /sys/class/leds/rssi_r/trigger 2>/dev/null
+    echo none > /sys/class/leds/rssi_g/trigger 2>/dev/null
+    echo none > /sys/class/leds/rssi_b/trigger 2>/dev/null
+    set_led_brightness rssi_r 0
+    set_led_brightness rssi_g 0
+    set_led_brightness rssi_b 0
+    
+    echo none > /sys/class/leds/wifi_r/trigger 2>/dev/null
+    echo none > /sys/class/leds/wifi_g/trigger 2>/dev/null
+    echo none > /sys/class/leds/wifi_b/trigger 2>/dev/null
+    set_led_brightness wifi_r 0
+    set_led_brightness wifi_g 0
+    set_led_brightness wifi_b 0
+    
+    killall httpd 2>/dev/null
+    killall hostapd 2>/dev/null
+    killall wpa_supplicant 2>/dev/null
+    killall udhcpc 2>/dev/null
+    kill $(cat /tmp/dnsmasq_wlan1.pid 2>/dev/null) 2>/dev/null
+    rmmod rtl8189es 2>/dev/null
+    ;;
+  *)
+    echo "Usage: $0 {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0

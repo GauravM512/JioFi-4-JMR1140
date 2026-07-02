@@ -1,0 +1,80 @@
+#!/bin/sh
+# CGI save script for JioFi Repeater Web UI
+echo "Content-type: application/json"
+echo ""
+
+# Read JSON POST body
+DATA=$(head -c "$CONTENT_LENGTH")
+
+# Parse JSON fields
+SSID=$(echo "$DATA" | grep -o '"ssid":"[^"]*' | cut -d'"' -f4)
+PASS=$(echo "$DATA" | grep -o '"password":"[^"]*' | cut -d'"' -f4)
+AP_SSID=$(echo "$DATA" | grep -o '"ap_ssid":"[^"]*' | cut -d'"' -f4)
+AP_PASS=$(echo "$DATA" | grep -o '"ap_pass":"[^"]*' | cut -d'"' -f4)
+IP_MODE=$(echo "$DATA" | grep -o '"ip_mode":"[^"]*' | cut -d'"' -f4)
+IP_ADDR=$(echo "$DATA" | grep -o '"ip_addr":"[^"]*' | cut -d'"' -f4)
+NETMASK=$(echo "$DATA" | grep -o '"netmask":"[^"]*' | cut -d'"' -f4)
+GATEWAY=$(echo "$DATA" | grep -o '"gateway":"[^"]*' | cut -d'"' -f4)
+
+# 1. Update IP configuration
+if [ -n "$IP_MODE" ]; then
+    cat << EOF > /data/ip_config.conf
+IP_MODE="$IP_MODE"
+IP_ADDR="$IP_ADDR"
+NETMASK="$NETMASK"
+GATEWAY="$GATEWAY"
+EOF
+fi
+
+# 2. Update wpa_supplicant config for wlan0 client connection
+if [ -n "$SSID" ]; then
+    if [ -z "$PASS" ]; then
+        # Open Network
+        cat << EOF > /data/wpa_supplicant.conf
+ctrl_interface=/var/run/wpa_supplicant
+update_config=1
+
+network={
+	ssid="$SSID"
+	key_mgmt=NONE
+}
+EOF
+    else
+        # WPA-PSK Network
+        cat << EOF > /data/wpa_supplicant.conf
+ctrl_interface=/var/run/wpa_supplicant
+update_config=1
+
+network={
+	ssid="$SSID"
+	psk="$PASS"
+}
+EOF
+    fi
+fi
+
+# 2. Update hostapd config for wlan1 hotspot
+if [ -n "$AP_SSID" ] && [ -n "$AP_PASS" ]; then
+    cat << EOF > /data/hostapd.conf
+interface=wlan1
+driver=nl80211
+ssid=$AP_SSID
+hw_mode=g
+channel=1
+wpa=2
+wpa_passphrase=$AP_PASS
+wpa_key_mgmt=WPA-PSK
+wpa_pairwise=CCMP
+rsn_pairwise=CCMP
+EOF
+fi
+
+# 3. Restart repeater service in the background to apply settings
+(
+    sleep 1
+    /etc/init.d/start_repeater stop
+    sleep 1
+    /etc/init.d/start_repeater start
+) &
+
+echo "{\"success\":true}"

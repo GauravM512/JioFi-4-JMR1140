@@ -1,0 +1,29 @@
+#!/bin/sh
+# CGI scan script for JioFi Repeater Web UI
+echo "Content-type: application/json"
+echo ""
+
+echo "["
+first=1
+# Trigger scan and parse cells using awk
+iwlist wlan0 scan 2>/dev/null | awk '
+  /Cell/ { if (ssid != "") { print_cell(); } ssid=""; encrypt="off"; signal="0"; chan="1"; }
+  /ESSID:/ { split($0, a, "\""); ssid=a[2]; }
+  /Frequency:/ { split($0, a, "Channel "); chan=substr(a[2], 1, length(a[2])-1); }
+  /Encryption key:/ { split($0, a, ":"); encrypt=a[2]; }
+  /Signal level/ { split($0, a, "="); signal=a[2]; gsub(/ dBm/, "", signal); }
+  END { if (ssid != "") { print_cell(); } }
+  function print_cell() {
+    # Clean up signal format
+    gsub(/[ \t]+/, "", ssid);
+    gsub(/[ \t]+/, "", encrypt);
+    gsub(/[ \t]+/, "", chan);
+    gsub(/[ \t]+/, "", signal);
+    if (ssid != "") {
+        if (first == 0) { printf ",\n"; }
+        printf "{\"ssid\":\"%s\",\"channel\":\"%s\",\"encrypt\":\"%s\",\"signal\":\"%s\"}", ssid, chan, encrypt, signal;
+        first=0;
+    }
+  }
+' first=1
+echo "]"

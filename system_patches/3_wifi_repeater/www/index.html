@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JioFi Control Panel</title>
+    <style>
+        :root {
+            --bg-color: #fafafa;
+            --panel-bg: #ffffff;
+            --border-color: #e4e4e7;
+            --text-primary: #18181b;
+            --text-secondary: #71717a;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #09090b;
+                --panel-bg: #18181b;
+                --border-color: #27272a;
+                --text-primary: #f4f4f5;
+                --text-secondary: #a1a1aa;
+                --accent: #3b82f6;
+                --accent-hover: #60a5fa;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+            padding: 2rem 1rem;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 540px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        header {
+            margin-bottom: 0.5rem;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .panel {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .panel-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-secondary);
+        }
+
+        .status-dot.connected {
+            background-color: var(--success);
+            box-shadow: 0 0 8px var(--success);
+        }
+
+        .status-dot.disconnected {
+            background-color: var(--danger);
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.65rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .info-label {
+            color: var(--text-secondary);
+        }
+
+        .info-value {
+            font-weight: 500;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        input {
+            width: 100%;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.6rem 0.75rem;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+        }
+
+        .form-divider {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin: 1.5rem 0 1rem 0;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.25rem;
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--accent);
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            padding: 0.65rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button.secondary {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        button.secondary:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .net-list {
+            display: flex;
+            flex-direction: column;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .net-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: background-color 0.15s ease;
+        }
+
+        .net-item:last-child {
+            border-bottom: none;
+        }
+
+        .net-item:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .net-item:hover {
+                background-color: rgba(255, 255, 255, 0.03);
+            }
+        }
+
+        .net-name {
+            font-weight: 500;
+        }
+
+        .net-meta {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-top: 0.15rem;
+        }
+
+        .net-signal {
+            font-weight: 500;
+            color: var(--accent);
+        }
+
+        .client-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+        }
+
+        .client-item:last-child {
+            border-bottom: none;
+        }
+
+        .client-name {
+            font-weight: 500;
+        }
+
+        .client-mac {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-family: monospace;
+            margin-top: 0.15rem;
+        }
+
+        .client-ip {
+            color: var(--text-secondary);
+        }
+
+        .loading-text {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 1rem;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>JioFi Repeater</h1>
+            <p>Wireless Extender Configuration</p>
+        </header>
+
+        <!-- Status Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Connection Status</span>
+                <span class="status-indicator">
+                    <span id="status-dot" class="status-dot"></span>
+                    <span id="status-text">Checking...</span>
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Upstream SSID</span>
+                <span id="upstream-ssid" class="info-value">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Signal Level</span>
+                <span id="upstream-signal" class="info-value">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">IP Address</span>
+                <span id="local-ip" class="info-value">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Battery Status</span>
+                <span id="battery-status" class="info-value">—</span>
+            </div>
+        </div>
+
+        <!-- Networks Scan Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Available Networks</span>
+                <button id="btn-scan" style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.75rem;">Scan</button>
+            </div>
+            <div id="scan-list" class="net-list">
+                <div class="loading-text">Click scan to discover networks.</div>
+            </div>
+        </div>
+
+        <!-- Setup Config Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Settings</span>
+            </div>
+            <form id="config-form">
+                <div class="form-divider" style="margin-top: 0;">Upstream Connection</div>
+                
+                <div class="form-group">
+                    <label for="ssid">Network Name (SSID)</label>
+                    <input type="text" id="ssid" placeholder="Target Wi-Fi SSID" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Target Wi-Fi Password">
+                </div>
+                
+                <div class="form-group">
+                    <label for="ip-mode">IP Assignment</label>
+                    <select id="ip-mode" style="width: 100%; background-color: transparent; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.6rem 0.75rem; color: var(--text-primary); font-family: inherit; font-size: 0.9rem; outline: none; transition: border-color 0.15s ease;">
+                        <option value="dhcp" style="background-color: var(--panel-bg); color: var(--text-primary);">Automatic (DHCP)</option>
+                        <option value="static" style="background-color: var(--panel-bg); color: var(--text-primary);">Static IP</option>
+                    </select>
+                </div>
+                
+                <div id="static-ip-fields" style="display: none;">
+                    <div class="form-group">
+                        <label for="ip-addr">IP Address</label>
+                        <input type="text" id="ip-addr" placeholder="e.g. 192.168.1.101">
+                    </div>
+                    <div class="form-group">
+                        <label for="netmask">Subnet Mask</label>
+                        <input type="text" id="netmask" placeholder="e.g. 255.255.255.0">
+                    </div>
+                    <div class="form-group">
+                        <label for="gateway">Gateway Address</label>
+                        <input type="text" id="gateway" placeholder="e.g. 192.168.1.1">
+                    </div>
+                </div>
+
+                <div class="form-divider">Local Broadcast Hotspot</div>
+                
+                <div class="form-group">
+                    <label for="ap-ssid">SSID (Hotspot Name)</label>
+                    <input type="text" id="ap-ssid" placeholder="JioFi_Repeater" required>
+                </div>
+                <div class="form-group">
+                    <label for="ap-pass">Password</label>
+                    <input type="password" id="ap-pass" placeholder="At least 8 characters" required minlength="8">
+                </div>
+
+                <button type="submit" id="btn-save" style="margin-top: 0.5rem;">Save and Apply</button>
+            </form>
+        </div>
+
+        <!-- Connected Clients Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Connected Devices</span>
+            </div>
+            <div id="client-list">
+                <div class="loading-text">No active client devices.</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus() {
+            fetch('/cgi-bin/status')
+                .then(res => res.json())
+                .then(data => {
+                    const dot = document.getElementById('status-dot');
+                    const text = document.getElementById('status-text');
+                    
+                    if (data.connected) {
+                        dot.className = 'status-dot connected';
+                        text.innerText = 'Connected';
+                    } else {
+                        dot.className = 'status-dot disconnected';
+                        text.innerText = 'Disconnected';
+                    }
+
+                    document.getElementById('upstream-ssid').innerText = data.ssid || '—';
+                    document.getElementById('upstream-signal').innerText = data.ssid ? (data.signal + '%') : '—';
+                    document.getElementById('local-ip').innerText = data.ip || '—';
+                    document.getElementById('battery-status').innerText = data.batt_level + '% (' + data.batt_status + ')';
+
+                    if (!document.activeElement || (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'SELECT')) {
+                        if (data.ssid) document.getElementById('ssid').value = data.ssid;
+                        if (data.ap_ssid) document.getElementById('ap-ssid').value = data.ap_ssid;
+                        if (data.ap_pass) document.getElementById('ap-pass').value = data.ap_pass;
+                        
+                        if (data.ip_mode) {
+                            document.getElementById('ip-mode').value = data.ip_mode;
+                            const staticFields = document.getElementById('static-ip-fields');
+                            if (data.ip_mode === 'static') {
+                                staticFields.style.display = 'block';
+                                if (data.ip_addr) document.getElementById('ip-addr').value = data.ip_addr;
+                                if (data.netmask) document.getElementById('netmask').value = data.netmask;
+                                if (data.gateway) document.getElementById('gateway').value = data.gateway;
+                            } else {
+                                staticFields.style.display = 'none';
+                            }
+                        }
+                    }
+
+                    const clientList = document.getElementById('client-list');
+                    if (data.clients && data.clients.length > 0) {
+                        clientList.innerHTML = data.clients.map(client => `
+                            <div class="client-item">
+                                <div>
+                                    <div class="client-name">${client.name || 'Anonymous Device'}</div>
+                                    <div class="client-mac">${client.mac}</div>
+                                </div>
+                                <div class="client-ip">${client.ip}</div>
+                            </div>
+                        `).join('');
+                    } else {
+                        clientList.innerHTML = '<div class="loading-text">No active client devices.</div>';
+                    }
+                })
+                .catch(err => console.error("Status fetch failed", err));
+        }
+
+        document.getElementById('btn-scan').addEventListener('click', () => {
+            const scanList = document.getElementById('scan-list');
+            scanList.innerHTML = '<div class="loading-text">Scanning for networks...</div>';
+            
+            fetch('/cgi-bin/scan')
+                .then(res => res.json())
+                .then(networks => {
+                    if (networks.length === 0) {
+                        scanList.innerHTML = '<div class="loading-text">No networks detected.</div>';
+                        return;
+                    }
+                    scanList.innerHTML = networks.map(net => `
+                        <div class="net-item" onclick="selectNetwork('${net.ssid}')">
+                            <div>
+                                <div class="net-name">${net.ssid}</div>
+                                <div class="net-meta">Channel ${net.channel} | ${net.encrypt === 'on' ? 'WPA2' : 'Open'}</div>
+                            </div>
+                            <div class="net-signal">${net.signal} dBm</div>
+                        </div>
+                    `).join('');
+                })
+                .catch(err => {
+                    scanList.innerHTML = '<div class="loading-text">Scan failed. Retry.</div>';
+                });
+        });
+
+        window.selectNetwork = function(ssid) {
+            document.getElementById('ssid').value = ssid;
+            document.getElementById('password').focus();
+        };
+
+        document.getElementById('ip-mode').addEventListener('change', (e) => {
+            const staticFields = document.getElementById('static-ip-fields');
+            if (e.target.value === 'static') {
+                staticFields.style.display = 'block';
+                document.getElementById('ip-addr').required = true;
+                document.getElementById('netmask').required = true;
+                document.getElementById('gateway').required = true;
+            } else {
+                staticFields.style.display = 'none';
+                document.getElementById('ip-addr').required = false;
+                document.getElementById('netmask').required = false;
+                document.getElementById('gateway').required = false;
+            }
+        });
+
+        document.getElementById('config-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save');
+            btn.innerText = 'Applying...';
+            btn.disabled = true;
+
+            const payload = {
+                ssid: document.getElementById('ssid').value,
+                password: document.getElementById('password').value,
+                ap_ssid: document.getElementById('ap-ssid').value,
+                ap_pass: document.getElementById('ap-pass').value,
+                ip_mode: document.getElementById('ip-mode').value,
+                ip_addr: document.getElementById('ip-addr').value,
+                netmask: document.getElementById('netmask').value,
+                gateway: document.getElementById('gateway').value
+            };
+
+            fetch('/cgi-bin/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Settings updated. Device is restarting network interfaces. Reconnect to the hotspot if SSID changed.');
+                    setTimeout(() => window.location.reload(), 8000);
+                } else {
+                    alert('Failed to update configurations.');
+                }
+            })
+            .catch(err => {
+                alert('Connection reset. Repeater settings updated successfully.');
+                setTimeout(() => window.location.reload(), 8000);
+            })
+            .finally(() => {
+                btn.innerText = 'Save and Apply';
+                btn.disabled = false;
+            });
+        });
+
+        updateStatus();
+        setInterval(updateStatus, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+#!/bin/sh
+# CGI status script for JioFi Repeater Web UI
+echo "Content-type: application/json"
+echo ""
+
+# Get wlan0 IP
+IP=$(ifconfig wlan0 2>/dev/null | grep 'inet addr:' | cut -d: -f2 | awk '{print $1}')
+
+# Get connection status and SSID
+SSID=""
+SIGNAL=0
+CONNECTED="false"
+
+if [ -n "$IP" ]; then
+    SSID=$(iwconfig wlan0 2>/dev/null | grep -o 'ESSID:"[^"]*"' | cut -d'"' -f2)
+    # Parse signal strength from /proc/net/wireless (Quality max is typically 70)
+    QUAL=$(cat /proc/net/wireless 2>/dev/null | grep wlan0 | awk '{print $3}' | cut -d. -f1)
+    if [ -n "$QUAL" ]; then
+        SIGNAL=$((QUAL * 100 / 70))
+        if [ $SIGNAL -gt 100 ]; then SIGNAL=100; fi
+        CONNECTED="true"
+    fi
+fi
+
+# Get current hotspot configurations
+HOSTAP_CONF="/data/hostapd.conf"
+if [ ! -f "$HOSTAP_CONF" ]; then
+    HOSTAP_CONF="/etc/hostapd.conf"
+fi
+AP_SSID=$(grep "^ssid=" "$HOSTAP_CONF" | cut -d= -f2)
+AP_PASS=$(grep "^wpa_passphrase=" "$HOSTAP_CONF" | cut -d= -f2)
+
+# Load IP configuration settings
+IP_MODE="dhcp"
+IP_ADDR=""
+NETMASK=""
+GATEWAY=""
+if [ -f "/data/ip_config.conf" ]; then
+    . /data/ip_config.conf
+fi
+
+# --- Battery & Charger Telemetry ---
+BATT_LEVEL=""
+BATT_STATUS=""
+
+# Read battery capacity from qpnp-vadc-8/vbatt
+R=$(cat /sys/devices/qpnp-vadc-8/vbatt 2>/dev/null | grep -o 'Result:[0-9]*' | cut -d: -f2)
+if [ -n "$R" ]; then
+    # V is actual millivolts (scaled Result * 3 / 1000)
+    V=$(( R * 3 / 1000 ))
+    
+    # If voltage is below 2000mV, the battery is physically removed
+    if [ $V -lt 2000 ]; then
+        BATT_LEVEL=0
+        BATT_STATUS="No Battery (USB Powered)"
+    else
+        # Battery voltage range: 3400mV (0%) to 4200mV (100%)
+        if [ $V -ge 4200 ]; then
+            BATT_LEVEL=100
+        elif [ $V -le 3400 ]; then
+            BATT_LEVEL=0
+        else
+            BATT_LEVEL=$(( (V - 3400) * 100 / 800 ))
+        fi
+    fi
+fi
+
+# Determine battery status if battery is present
+if [ -z "$BATT_STATUS" ]; then
+    BATT_STATUS=$(cat /sys/class/power_supply/sy6923-charger/status 2>/dev/null)
+    USB_ONLINE=$(cat /sys/class/power_supply/usb/online 2>/dev/null)
+    
+    if [ "$BATT_STATUS" = "Unknown" ] || [ -z "$BATT_STATUS" ]; then
+        if [ "$USB_ONLINE" = "1" ]; then
+            if [ -n "$BATT_LEVEL" ] && [ "$BATT_LEVEL" -ge 95 ]; then
+                BATT_STATUS="Full"
+            else
+                BATT_STATUS="Charging"
+            fi
+        else
+            BATT_STATUS="Discharging"
+        fi
+    fi
+fi
+
+if [ -z "$BATT_LEVEL" ]; then
+    BATT_LEVEL="100"
+fi
+if [ -z "$BATT_STATUS" ]; then
+    BATT_STATUS="Battery Present"
+fi
+
+# --- Client Details (wlan1 associated stations) ---
+# Get associated stations from hostapd to show only active connected clients
+ASSOCIATED_MACS=$(hostapd_cli -p /var/run/hostapd -i wlan1 all_sta 2>/dev/null | grep -E '^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}' | tr 'A-Z' 'a-z')
+
+# Cross-reference associated stations with DHCP lease file
+CLIENTS=""
+LEASE_FILE="/tmp/dnsmasq_wlan1.leases"
+if [ -f "$LEASE_FILE" ]; then
+    while read -r expiry mac ip host client_id; do
+        if [ -n "$mac" ]; then
+            # If hostapd control socket is active, show only associated stations.
+            # Otherwise, fall back to showing all current DHCP leases.
+            if [ -n "$ASSOCIATED_MACS" ]; then
+                mac_lower=$(echo "$mac" | tr 'A-Z' 'a-z')
+                case "$ASSOCIATED_MACS" in
+                    *"$mac_lower"*)
+                        if [ -n "$CLIENTS" ]; then CLIENTS="$CLIENTS,"; fi
+                        CLIENTS="$CLIENTS{\"mac\":\"$mac\",\"ip\":\"$ip\",\"name\":\"$host\"}"
+                        ;;
+                esac
+            else
+                if [ -n "$CLIENTS" ]; then CLIENTS="$CLIENTS,"; fi
+                CLIENTS="$CLIENTS{\"mac\":\"$mac\",\"ip\":\"$ip\",\"name\":\"$host\"}"
+            fi
+        fi
+    done < "$LEASE_FILE"
+fi
+
+echo "{\"connected\":$CONNECTED,\"ssid\":\"$SSID\",\"signal\":$SIGNAL,\"ip\":\"$IP\",\"ap_ssid\":\"$AP_SSID\",\"ap_pass\":\"$AP_PASS\",\"ip_mode\":\"$IP_MODE\",\"ip_addr\":\"$IP_ADDR\",\"netmask\":\"$NETMASK\",\"gateway\":\"$GATEWAY\",\"batt_level\":$BATT_LEVEL,\"batt_status\":\"$BATT_STATUS\",\"clients\":[$CLIENTS]}"
