@@ -319,6 +319,9 @@
                 <span class="info-label">Battery Status</span>
                 <span id="battery-status" class="info-value">—</span>
             </div>
+            <div style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                <button id="btn-reboot" class="secondary" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.25); font-weight: 600;">Reboot Device</button>
+            </div>
         </div>
 
         <!-- Networks Scan Panel -->
@@ -332,14 +335,12 @@
             </div>
         </div>
 
-        <!-- Setup Config Panel -->
+        <!-- Upstream Wifi Setup Panel -->
         <div class="panel">
             <div class="panel-header">
-                <span class="panel-title">Settings</span>
+                <span class="panel-title">Upstream Wi-Fi Connection</span>
             </div>
-            <form id="config-form">
-                <div class="form-divider" style="margin-top: 0;">Upstream Connection</div>
-                
+            <form id="upstream-form">
                 <div class="form-group">
                     <label for="ssid">Network Name (SSID)</label>
                     <input type="text" id="ssid" placeholder="Target Wi-Fi SSID" required>
@@ -372,8 +373,16 @@
                     </div>
                 </div>
 
-                <div class="form-divider">Local Broadcast Hotspot</div>
-                
+                <button type="submit" id="btn-save-upstream" style="margin-top: 0.5rem;">Connect to Network</button>
+            </form>
+        </div>
+
+        <!-- Local Hotspot Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">Local Hotspot Settings</span>
+            </div>
+            <form id="hotspot-form">
                 <div class="form-group">
                     <label for="ap-ssid">SSID (Hotspot Name)</label>
                     <input type="text" id="ap-ssid" placeholder="JioFi_Repeater" required>
@@ -383,7 +392,7 @@
                     <input type="password" id="ap-pass" placeholder="At least 8 characters" required minlength="8">
                 </div>
 
-                <button type="submit" id="btn-save" style="margin-top: 0.5rem;">Save and Apply</button>
+                <button type="submit" id="btn-save-hotspot" style="margin-top: 0.5rem;">Apply Hotspot Settings</button>
             </form>
         </div>
 
@@ -502,17 +511,16 @@
             }
         });
 
-        document.getElementById('config-form').addEventListener('submit', (e) => {
+        // Submit Upstream Wi-Fi Form
+        document.getElementById('upstream-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            const btn = document.getElementById('btn-save');
-            btn.innerText = 'Applying...';
+            const btn = document.getElementById('btn-save-upstream');
+            btn.innerText = 'Applying connection...';
             btn.disabled = true;
 
             const payload = {
                 ssid: document.getElementById('ssid').value,
                 password: document.getElementById('password').value,
-                ap_ssid: document.getElementById('ap-ssid').value,
-                ap_pass: document.getElementById('ap-pass').value,
                 ip_mode: document.getElementById('ip-mode').value,
                 ip_addr: document.getElementById('ip-addr').value,
                 netmask: document.getElementById('netmask').value,
@@ -527,20 +535,74 @@
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    alert('Settings updated. Device is restarting network interfaces. Reconnect to the hotspot if SSID changed.');
+                    alert('Connecting to upstream network. Re-checking status...');
                     setTimeout(() => window.location.reload(), 8000);
                 } else {
-                    alert('Failed to update configurations.');
+                    alert('Failed to apply upstream configurations.');
                 }
             })
             .catch(err => {
-                alert('Connection reset. Repeater settings updated successfully.');
+                alert('Upstream settings updated successfully.');
                 setTimeout(() => window.location.reload(), 8000);
             })
             .finally(() => {
-                btn.innerText = 'Save and Apply';
+                btn.innerText = 'Connect to Network';
                 btn.disabled = false;
             });
+        });
+
+        // Submit Local Hotspot Form
+        document.getElementById('hotspot-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-save-hotspot');
+            btn.innerText = 'Applying hotspot...';
+            btn.disabled = true;
+
+            const payload = {
+                ap_ssid: document.getElementById('ap-ssid').value,
+                ap_pass: document.getElementById('ap-pass').value
+            };
+
+            fetch('/cgi-bin/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Hotspot settings applied successfully. Reconnect to the new SSID if you changed it.');
+                    setTimeout(() => window.location.reload(), 8000);
+                } else {
+                    alert('Failed to apply hotspot configurations.');
+                }
+            })
+            .catch(err => {
+                alert('Hotspot settings updated. Please reconnect to the Wi-Fi hotspot.');
+                setTimeout(() => window.location.reload(), 8000);
+            })
+            .finally(() => {
+                btn.innerText = 'Apply Hotspot Settings';
+                btn.disabled = false;
+            });
+        });
+
+        // Reboot Button Handler
+        document.getElementById('btn-reboot').addEventListener('click', () => {
+            if (confirm('Are you sure you want to reboot the JioFi device?')) {
+                const btn = document.getElementById('btn-reboot');
+                btn.innerText = 'Rebooting...';
+                btn.disabled = true;
+
+                fetch('/cgi-bin/reboot')
+                .then(res => res.json())
+                .then(data => {
+                    alert('JioFi is rebooting. Please wait 45-60 seconds and reconnect.');
+                })
+                .catch(err => {
+                    alert('Reboot command sent successfully. Reconnect in 45-60 seconds.');
+                });
+            }
         });
 
         updateStatus();
