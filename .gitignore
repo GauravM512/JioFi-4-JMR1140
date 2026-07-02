@@ -1,0 +1,49 @@
+# =========================================================================
+# JioFi JMR1140 Firmware Modding Git Ignore Configuration
+# =========================================================================
+
+# Large Extracted Filesystems (rebuilt on-the-fly using patches)
+/rootfs/
+/rootfs.state
+/metadata/rootfs.state
+
+# Compiler & Driver Build Artifacts
+*.o
+*.ko
+*.mod.c
+*.mod.o
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+/driver/*.o
+/driver/*.ko
+/driver/.*.cmd
+/driver/*.mod.c
+/driver/*.mod.o
+/driver/modules.order
+/driver/Module.symvers
+/driver/.tmp_versions/
+
+# Keep Release Binaries and Prebuilts
+!/patched/*.ubi
+!/patched/rtl8189es-custom.ko
+
+# Temporary Virtualenvs and Tooling
+/.tools/
+/.venv/
+/venv/
+/ubi-venv/
+
+# Windows Upgrade Tool Logs & Dumps
+/firmware/LOG/
+/firmware/*.log
+*.log
+
+# Editor & System Junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
