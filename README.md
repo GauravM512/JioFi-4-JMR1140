@@ -88,7 +88,8 @@ EOF
 ## ⚡ How to Flash
 
 1. **For First-Time Installation:**
-   * Rename the custom patched UBI image file `mdm9607-sysfs-patched.ubi` to **`mdm9607-sysfs.ubi`**.
+   * Put the device in recovery mode: **Hold the Power + WPS buttons simultaneously, then connect the USB cable to the PC**. If the tool fails to detect the device, remove the battery entirely and run the device purely on USB power, then repeat the key combination. (The device can operate fully without a battery when powered by a stable USB source).
+   * Rename the custom patched UBI image file `mdm9607-sysfs-repeater-patched.ubi` to **`mdm9607-sysfs.ubi`**.
    * Place the renamed image in the `firmware/` directory containing the Windows firmware upgrade tool (`Firmware Upgrade_6.x.exe`), replacing the default stock file.
    * Run the installer executable to load the image onto the device.
 
