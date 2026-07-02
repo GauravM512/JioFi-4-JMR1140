@@ -126,4 +126,5 @@ Since the official AMTelecom OEM support pages have been delisted, you can retri
 
 👉 **[JMR1140 Drivers and Tools Mirror](https://spacebyte.in/drive/s/uCVx8f0br9B78IR8bZZtsels6SzexX)**
 
-* **EDL Mode Recovery:** If the system is bricked, you can access Qualcomm Emergency Download Mode (EDL) using the serial COM port AT command interface and flash the stock `mdm9607-sysfs.ubi` reference partition image to restore functionality.
+* **Qualcomm EDL Mode (Backup):** 
+  * To backup your own stock system images before modding: Enable temporary ADB via the serial COM port AT commands (`AT%DBGMODE=1` & `AT%DBGUSBSET=1`), then reboot the device into EDL mode by running `adb reboot edl`. You can then dump/read your partitions using QPST/QFIL or open-source QDL tools.
