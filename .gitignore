@@ -7,6 +7,14 @@
 /rootfs.state
 /metadata/rootfs.state
 
+# Personal customizations (WPS WOL listener) - NOT COMMITTED
+/rootfs/usr/bin/wps_listener.sh
+/rootfs/etc/init.d/start_wps_listener
+/rootfs/etc/rc5.d/S99start_wps_listener
+
+# Personal compiled images output directory
+/personal_builds/
+
 # Realtek Driver Source Directory (documentation covers how to download/build)
 /driver/
 
