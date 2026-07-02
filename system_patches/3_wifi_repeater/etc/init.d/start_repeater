@@ -169,12 +169,81 @@ case "$1" in
     ) &
     echo $! > /var/run/repeater_leds.pid
 
+    # 13. Start background suspend-resume watchdog
+    (
+        # Wait a bit on initial boot
+        sleep 20
+        while true; do
+            BEFORE=$(date +%s)
+            sleep 5
+            AFTER=$(date +%s)
+            ELAPSED=$((AFTER - BEFORE))
+            if [ $ELAPSED -gt 15 ]; then
+                echo "=== Suspend-Resume Detected ($ELAPSED sec) ===" > /dev/kmsg
+                (
+                    echo "Re-initializing repeater interfaces on wake-up..." > /dev/kmsg
+                    # Unload and kill services
+                    killall hostapd 2>/dev/null
+                    killall wpa_supplicant 2>/dev/null
+                    killall udhcpc 2>/dev/null
+                    kill $(cat /tmp/dnsmasq_wlan1.pid 2>/dev/null) 2>/dev/null
+                    rmmod rtl8189es 2>/dev/null
+                    sleep 2
+                    
+                    # Reload wireless driver
+                    insmod /usr/lib/modules/3.18.20/kernel/drivers/net/rtl8192cd/rtl8189es.ko 2>/dev/null
+                    sleep 3
+                    ifconfig wlan0 up 2>/dev/null
+                    ifconfig wlan1 up 2>/dev/null
+                    sleep 1
+                    
+                    # Restart client dhcp / static config
+                    IP_MODE="dhcp"
+                    IP_ADDR=""
+                    NETMASK=""
+                    GATEWAY=""
+                    if [ -f "/data/ip_config.conf" ]; then
+                        . /data/ip_config.conf
+                    fi
+                    if [ "$IP_MODE" = "static" ] && [ -n "$IP_ADDR" ] && [ -n "$NETMASK" ] && [ -n "$GATEWAY" ]; then
+                        ifconfig wlan0 "$IP_ADDR" netmask "$NETMASK"
+                        route add default gw "$GATEWAY" wlan0
+                    else
+                        udhcpc -i wlan0 -s /etc/udhcpc.d/50default -b &
+                    fi
+                    
+                    # Restart hostapd AP
+                    mkdir -p /var/run/hostapd
+                    if ! grep -q "^ctrl_interface=" "$HOSTAPD_CONF" 2>/dev/null; then
+                        echo "ctrl_interface=/var/run/hostapd" >> "$HOSTAPD_CONF"
+                    fi
+                    hostapd -B "$HOSTAPD_CONF"
+                    
+                    # Restart DHCP server
+                    brctl delif bridge0 wlan1 2>/dev/null || true
+                    ifconfig wlan1 192.168.224.1 netmask 255.255.255.0
+                    dnsmasq --dhcp-authoritative --pid-file=/tmp/dnsmasq_wlan1.pid --dhcp-leasefile=/tmp/dnsmasq_wlan1.leases -u root -i wlan1 -z --dhcp-range=wlan1,192.168.224.20,192.168.224.60,255.255.255.0,12h --dhcp-option=6,8.8.8.8,1.1.1.1
+                    
+                    # Reconfigure NAT
+                    echo 1 > /proc/sys/net/ipv4/ip_forward
+                    iptables -F FORWARD
+                    iptables -P FORWARD ACCEPT
+                    iptables -t nat -F
+                    iptables -t nat -A POSTROUTING -o wlan0 -j MASQUERADE
+                ) &
+            fi
+        done
+    ) &
+    echo $! > /var/run/repeater_watchdog.pid
+
     echo "=== JioFi Repeater is Active ==="
     ;;
   stop)
     echo "Stopping JioFi Wi-Fi Repeater"
     kill $(cat /var/run/repeater_leds.pid 2>/dev/null) 2>/dev/null
     rm -f /var/run/repeater_leds.pid
+    kill $(cat /var/run/repeater_watchdog.pid 2>/dev/null) 2>/dev/null
+    rm -f /var/run/repeater_watchdog.pid
     
     # Turn off RSSI and Wi-Fi LEDs on stop
     echo none > /sys/class/leds/rssi_r/trigger 2>/dev/null
