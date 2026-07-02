@@ -7,23 +7,8 @@
 /rootfs.state
 /metadata/rootfs.state
 
-# Compiler & Driver Build Artifacts
-*.o
-*.ko
-*.mod.c
-*.mod.o
-*.cmd
-.tmp_versions/
-modules.order
-Module.symvers
-/driver/*.o
-/driver/*.ko
-/driver/.*.cmd
-/driver/*.mod.c
-/driver/*.mod.o
-/driver/modules.order
-/driver/Module.symvers
-/driver/.tmp_versions/
+# Realtek Driver Source Directory (documentation covers how to download/build)
+/driver/
 
 # Keep Release Binaries and Prebuilts
 !/patched/*.ubi
@@ -34,6 +19,10 @@ Module.symvers
 /.venv/
 /venv/
 /ubi-venv/
+
+# Ignore all firmware files by default EXCEPT the reference system UBI image
+/firmware/*
+!/firmware/mdm9607-sysfs.ubi
 
 # Windows Upgrade Tool Logs & Dumps
 /firmware/LOG/
