@@ -1,0 +1,3 @@
+#!/bin/sh
+# Disabled for JioFi Wi-Fi Repeater Mode to prevent network configuration conflicts
+exit 0
