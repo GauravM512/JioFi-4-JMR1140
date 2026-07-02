@@ -117,3 +117,13 @@ In Wi-Fi Repeater Mode, the **RSSI LED** indicates connection health and signal 
 * 🔴 **Solid Red**: Connected to the upstream host router with a **Weak/Poor Signal** ($< 35\%$).
 * 🔴 **Fast Blinking Red** (250ms interval): Upstream connection lost, scanning/reconnecting.
 * 🔴 **Slow Blinking Red** (500ms interval): Booting up or waiting for configuration.
+
+---
+
+## 🔗 Resources, Drivers & Flasher Tools
+
+Since the official AMTelecom OEM support pages have been delisted, you can retrieve the genuine diagnostic drivers, upgrade executables, and firmware tools from this verified community mirror:
+
+👉 **[JMR1140 Drivers and Tools Mirror](https://spacebyte.in/drive/s/uCVx8f0br9B78IR8bZZtsels6SzexX)**
+
+* **EDL Mode Recovery:** If the system is bricked, you can access Qualcomm Emergency Download Mode (EDL) using the serial COM port AT command interface and flash the stock `mdm9607-sysfs.ubi` reference partition image to restore functionality.
