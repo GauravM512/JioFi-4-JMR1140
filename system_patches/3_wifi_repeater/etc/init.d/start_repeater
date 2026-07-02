@@ -17,6 +17,9 @@ case "$1" in
   start)
     echo "=== Starting JioFi Wi-Fi Repeater ==="
     
+    # Kill conflicting OEM UI manager to free up LEDs and button overrides
+    killall uiapp 2>/dev/null
+    
     # 1. Redirect blocking /dev/random to non-blocking /dev/urandom
     rm -f /dev/random
     ln -sf /dev/urandom /dev/random
@@ -183,6 +186,7 @@ case "$1" in
                 (
                     echo "Re-initializing repeater interfaces on wake-up..." > /dev/kmsg
                     # Unload and kill services
+                    killall uiapp 2>/dev/null
                     killall hostapd 2>/dev/null
                     killall wpa_supplicant 2>/dev/null
                     killall udhcpc 2>/dev/null
