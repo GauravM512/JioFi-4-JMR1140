@@ -245,6 +245,29 @@ turn RED). For first-time flashes you can also rename the `.ubi`
 to `mdm9607-sysfs.ubi`, drop it into `firmware/` next to the
 Windows `Firmware Upgrade_6.x.exe` tool, and run that installer.
 
+> **⚠️ Windows-tool prerequisites (first-time flash only)** —
+> do these **in order** before launching `Firmware Upgrade_6.x.exe`.
+>
+> 1. **Install the bundled USB driver first.** The same
+>    archive contains `driver.exe` — the Qualcomm HS-USB
+>    QDLoader driver. Run `driver.exe` *before* anything
+>    else: without it `Firmware Upgrade_6.x.exe` cannot
+>    enumerate the JioFi on its USB port and refuses to
+>    start (it just sits on "Searching device…" forever).
+> 2. **Copy the tool out of `%TEMP%\amt_temp\` to a stable
+>    location.** `Firmware Upgrade_6.x.exe` is a
+>    self-extracting archive that unpacks itself to a
+>    folder literally named `amt_temp` inside Windows
+>    `%TEMP%` and runs from there. Windows can wipe
+>    `%TEMP%` at any reboot — including while you're
+>    mid-flash — so copy the extracted `amt_temp` folder
+>    (e.g. `C:\JioFi\amt_temp\`) before launching the
+>    upgrade tool.
+> 3. **Rename the image to the exact expected name.** The
+>    upgrade tool only flashes a file literally named
+>    `mdm9607-sysfs.ubi` sitting next to its own
+>    executable, so the renamed image must already be in
+>    the extracted folder when you launch the tool.
 ---
 
 ## Manual Patching Guide
