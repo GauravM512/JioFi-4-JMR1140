@@ -1,66 +1,131 @@
-# JioFi JMR1140 Firmware Notes
+# JioFi JMR1140 Patched Firmware
 
-## Working Images
+This directory contains bootable UBI firmware images for the
+**JioFi JMR1140** (Qualcomm MDM9607) router, plus a custom Realtek
+Wi-Fi driver and the AP+STA repeater helpers. Every UBI image here was
+built with the corrected **v2 repacking geometry** (image sequence
+`907419386`, see [Correct Repack Recipe](#correct-repack-recipe));
+earlier repack attempts with mismatched sub-page sizes bootlooped
+the device before this geometry was pinned down.
 
-- `mdm9607-sysfs-stock-repacked-v2.ubi`
-  - Zero-edit stock repack.
-  - Confirmed by device test: boots.
+---
 
-- `mdm9607-sysfs-adb-shelllink-v2.ubi`
-  - Confirmed by device test: boots and gives `adb shell`.
-  - Changes: normal `02e1` USB composition enables ADB, and
-    `/system/bin/sh -> /bin/sh` is present.
+## Working Images (most recent first)
 
-- `mdm9607-sysfs-adb-extender-v1.ubi`
-  - New extender test image.
-  - Based on the working ADB fallback rootfs.
-  - Keeps ADB shell.
-  - Enables AP+STA defaults for Wi-Fi extender testing.
+### `mdm9607-sysfs-repeater-patched.ubi`
+* **Purpose:** Full Wi-Fi repeater / extender with permanent ADB shell.
+* **Tested:** Boots, exposes `adb shell`, broadcasts a local hotspot,
+  connects to an upstream Wi-Fi AP through the custom STA-capable
+  `rtl8189es` driver.
+* **Layered on top of:** `mdm9607-sysfs-adb-shelllink-v2.ubi` +
+  OpenLumi `rtl8189es.ko` + `start_repeater` init script +
+  `hostapd.conf`.
 
-Older files without `v2` are kept only for comparison. Do not use them first.
+### `mdm9607-sysfs-unlocked-apn.ubi`
+* **Purpose:** Carrier-lock bypass + permanent ADB shell.
+* **Default APN:** `internet` (generic, not `jionet`).
+* **Web UI:** `Default APN` and `Multiple APN` tables unhidden under
+  `session_level == 3` (administrator login).
 
-## Extender Image Changes
+### `mdm9607-sysfs-adb-shelllink-v2.ubi`
+* **Purpose:** Stock firmware with a permanent root ADB shell — **no
+  other modifications**.
+* **Use this when:** You want a minimal, well-understood base that
+  you can layer further customisations on top of.
 
-`mdm9607-sysfs-adb-extender-v1.ubi` changes:
+### `mdm9607-sysfs-stock-repacked-v2.ubi`
+* **Purpose:** Zero-edit stock repack, used to validate the v2
+  repacking geometry before layering any of the patches above.
+* **Use this when:** Sanity-checking the build pipeline, or as a
+  known-good rollback.
 
-- `/etc/mobileap_cfg.xml`
-  - `<WlanMode>AP-STA</WlanMode>`
-  - `<MobileAPSTABridgeEnable>1</MobileAPSTABridgeEnable>`
-  - Backhaul priority changed to `wlan`, then `wwan`, then `usb_cradle`.
+---
 
-- `/WEBSERVER/www/QCMAP.html`
-  - Adds visible `WiFi Extender` menu item under Settings.
-  - Adds `#wlan` hash loader.
+## Repeater Image Changes
 
-- `/WEBSERVER/www/QCMAP_WLAN.html`
-  - Direct browsing now redirects to `QCMAP.html#wlan`.
-  - Use: `http://192.168.225.1/QCMAP.html#wlan`
+`mdm9607-sysfs-repeater-patched.ubi` combines every patch in
+`mdm9607-sysfs-adb-shelllink-v2.ubi` plus the repeater subsystem:
 
-- `/usr/bin/jiofi-set-sta`
-  - ADB helper to configure upstream Wi-Fi SSID/password.
+* `/usr/lib/modules/3.18.20/kernel/drivers/net/rtl8192cd/rtl8189es.ko`
+  — replaced with the OpenLumi-derived client / STA-capable module
+  (see [`../../DRIVER_BUILD.md`](../../DRIVER_BUILD.md) for build
+  prerequisites). The custom module is loaded with power management
+  disabled (`rtw_power_mgnt=0`, `rtw_ips_mode=0`).
+* `/etc/init.d/start_repeater` — launches the AP+STA repeater on
+  boot (driven by the standalone script in this folder).
+* `/etc/hostapd.conf` — local hotspot config (`ssid=JioFi_Repeater`,
+  WPA2-PSK, default passphrase `12345678`; mirrors this folder's
+  `hostapd.conf`).
+* `/etc/mobileap_cfg.xml` —
+  `<WlanMode>AP-STA</WlanMode>` and
+  `<MobileAPSTABridgeEnable>1</MobileAPSTABridgeEnable>`.
+* `start_QCMAP_ConnectionManager_le` and
+  `start_QCMAP_Web_CLIENT_le` — neutered (stubbed to `/bin/true`)
+  so QCMAP does not fight the repeater for the radio interface.
+* `uiapp` daemon — neutered to free up the LED class nodes for the
+  repeater status indicator.
 
-After flashing and booting:
+After flashing:
 
 ```sh
+# 1. Confirm ADB shell is up:
 adb shell
-jiofi-set-sta "UPSTREAM_SSID" "UPSTREAM_PASSWORD"
+
+# 2. Configure upstream Wi-Fi credentials:
+cat > /etc/wpa_supplicant.conf <<'EOF'
+ctrl_interface=/var/run/wpa_supplicant
+network={
+    ssid="YOUR_UPSTREAM_SSID"
+    psk="YOUR_UPSTREAM_PASSWORD"
+    key_mgmt=WPA-PSK
+}
+EOF
+
+# 3. The repeater is already running; SSID "JioFi_Repeater"
+#    should be visible. Browse http://192.168.224.1/ for the
+#    repeater Web UI.
 ```
 
-For open upstream Wi-Fi:
+LED behaviour of the upstream STA connection is encoded directly in
+the `start_repeater` background loop:
 
-```sh
-jiofi-set-sta "UPSTREAM_SSID"
-```
+| LED | State |
+|-----|-------|
+| Solid Green | RSSI ≥ 70 % |
+| Solid Amber | RSSI 35 – 69 % |
+| Solid Red | RSSI < 35 % |
+| Fast blink Red (250 ms) | Reconnecting / lost upstream |
+| Slow blink Red (500 ms) | Booting / waiting for config |
 
-Then open:
+---
 
-```text
-http://192.168.225.1/QCMAP.html#wlan
-```
+## Repeater Status
 
-The hidden Qualcomm WLAN page can set AP-STA mode and STA DHCP/static mode. It
-does not provide a friendly scan/select upstream SSID UI, so use
-`jiofi-set-sta` for upstream credentials.
+* **Status:** **Working** on stock JMR1140 hardware.
+* **Driver note:** The OEM `rtl8189es.ko` is an AP-only build.
+  Forcing `opmode=8` (`IW_MODE_INFRA`) on it silently reverts to
+  master mode with `Undefined state... using AP mode as default`.
+  The repeater image replaces it with the OpenLumi-derived module
+  that has working `nl80211` client-mode support.
+
+---
+
+## Helpers
+
+### `start_repeater.sh`
+A standalone copy of the same script that lives at
+`/etc/init.d/start_repeater` inside the repeater image. Useful as a
+reference and for running the repeater manually under `adb shell`
+without rebooting into the image.
+
+### `hostapd.conf`
+The local-hotspot configuration consumed both by
+`start_repeater.sh` and by the on-device `start_repeater` init
+script. Defaults: `ssid=JioFi_Repeater`, `channel=1`, `hw_mode=g`,
+`wpa=2`, `wpa_passphrase=12345678`. Edit this file before a manual
+run if you want a different SSID or passphrase.
+
+---
 
 ## ADB Without Flashing
 
@@ -72,26 +137,30 @@ AT%DBGUSBSET=1
 ```
 
 Those commands are handled by `amt_atfwd_daemon` /
-`libamt_atfwd_utils.so.0` and can enable ADB on stock firmware through the
-router AT/serial COM port.
+`libamt_atfwd_utils.so.0` and can enable ADB on stock firmware
+through the router AT/serial COM port without flashing any of these
+images.
+
+---
 
 ## Correct Repack Recipe
 
-The first stock repack bootlooped because the UBIFS geometry was wrong. The
-working recipe is:
+The first stock repack bootlooped because the UBIFS geometry was
+wrong. The working recipe (used by `mdm9607-sysfs-stock-repacked-v2.ubi`
+and every downstream image) uses:
 
-- UBI min I/O: `2048`
-- UBI PEB size: `128KiB`
-- VID header offset: `2048`
-- UBIFS LEB size: `126976`
-- Image sequence: `907419386`
-- Volume name: `rootfs`
-- Volume flags: `autoresize`
-- UBI total blocks: `327`
-- UBI data blocks: `325`
-- UBIFS `max_leb_cnt`: `2146`
-- UBIFS journal: `8388608`
-- UBIFS flag: `Space fixup`
+* UBI min I/O: `2048`
+* UBI PEB size: `128KiB`
+* VID header offset: `2048`
+* UBIFS LEB size: `126976`
+* Image sequence: `907419386`
+* Volume name: `rootfs`
+* Volume flags: `autoresize`
+* UBI total blocks: `327`
+* UBI data blocks: `325`
+* UBIFS `max_leb_cnt`: `2146`
+* UBIFS journal: `8388608`
+* UBIFS flag: `Space fixup`
 
 Build commands:
 
@@ -106,7 +175,7 @@ fakeroot -i "$STATE" -- /usr/sbin/mkfs.ubifs \
   -o "$OUT/rootfs.ubifs"
 
 cat > "$OUT/ubinize.cfg" <<'EOF'
-[rootfs]
+[sysfs_volume]
 mode=ubi
 image=/path/to/out/rootfs.ubifs
 vol_id=0
@@ -122,18 +191,20 @@ EOF
   "$OUT/ubinize.cfg"
 ```
 
-When using the config above, replace `/path/to/out/rootfs.ubifs` with the real
-absolute path. `ubinize` does not expand `$OUT` inside the config file.
+When using the config above, replace `/path/to/out/rootfs.ubifs`
+with the real absolute path. `ubinize` does not expand shell
+variables inside the config file.
+
+---
 
 ## Verification Commands
 
 ```sh
-.tools/ubi-venv/bin/ubireader_display_info patched/mdm9607-sysfs-adb-extender-v1.ubi
-.tools/ubi-venv/bin/ubireader_display_info /tmp/jiofi_extender_repack/build/rootfs.ubifs
+.tools/ubi-venv/bin/ubireader_display_info patched/mdm9607-sysfs-stock-repacked-v2.ubi
 sha256sum -c patched/SHA256SUMS
 ```
 
-Expected important fields:
+Expected `ubireader` fields:
 
 ```text
 Total Block Count: 327
@@ -149,100 +220,116 @@ max_bud_bytes: 8388608
 max_leb_cnt: 2146
 ```
 
+---
+
 ## Flashing
 
 Restore stock:
 
-```powershell
-fastboot flash system firmware\mdm9607-sysfs.ubi
+```sh
+fastboot flash system firmware/mdm9607-sysfs.ubi
 fastboot reboot
 ```
 
-Flash extender image:
+Flash the repeater image:
 
-```powershell
-fastboot flash system patched\mdm9607-sysfs-adb-extender-v1.ubi
+```sh
+fastboot flash system patched/mdm9607-sysfs-repeater-patched.ubi
 fastboot reboot
 ```
 
-## Extender Status
-
-*   **Status:** **Unsupported** at the driver level.
-*   **Root Cause:** While Qualcomm's QCMAP framework supports `AP-STA` mode, the stock Realtek Wi-Fi kernel module ([rtl8189es.ko](file:///tmp/jiofi_extender_repack/extract/907419386/rootfs/usr/lib/modules/3.18.20/kernel/drivers/net/rtl8192cd/rtl8189es.ko)) was compiled by the OEM without `CONFIG_CLIENT_MODE` support. Any attempt to force client mode (`opmode=8` / `IW_MODE_INFRA`) triggers `Undefined state... using AP mode as default` and reverts to AP mode (`IW_MODE_MASTER`).
-
----
-
-## Patched UBI Images
-
-- **`mdm9607-sysfs-unlocked-apn.ubi`**
-  - **Description:** SIM unlock and ADB image. Keeps ADB access, but reverts AP-STA settings and unhides Web UI APN settings.
-  - **Default APN:** `internet` (generic).
+If the device is not yet in fastboot, hold the **Power + WPS**
+buttons simultaneously while connecting the USB cable (or remove
+the battery first and run purely on USB power if the LEDs do not
+turn RED). For first-time flashes you can also rename the `.ubi`
+to `mdm9607-sysfs.ubi`, drop it into `firmware/` next to the
+Windows `Firmware Upgrade_6.x.exe` tool, and run that installer.
 
 ---
 
 ## Manual Patching Guide
 
-If you are repacking the firmware yourself, here are the step-by-step file edits needed to enable ADB and SIM Unlocking independently.
+If you are repacking the firmware yourself, here are the
+step-by-step file edits needed to enable ADB and SIM unlocking
+independently.
 
 ### Part 1: Enabling ADB
-To enable ADB, you need to modify the USB composition script to initialize the ADB interface during normal boot, and create a symlink for the shell.
+
+To enable ADB, you need to modify the USB composition script to
+initialize the ADB interface during normal boot, and create a
+symlink for the shell.
 
 #### Step 1.1: Edit USB Composition
-Open [sbin/usb/compositions/02e1](file:///tmp/jiofi_unlock_repack/rootfs/sbin/usb/compositions/02e1) and locate the default boot option case (`*`) around line 139:
+
+Open `sbin/usb/compositions/02e1` on the extracted rootfs and locate
+the default boot option case (`*`) around line 139:
 
 ```diff
- 		* )
--			# Enable WiFi disk mode in normal boot.
--			if [ $(cat /sys/devices/soc:smem_db/wdisk_mode) == "1" ]
--			then
--				run_mass_storage &
--			else
--				run_mass &
--			fi
-+			# Enable ADB in normal boot while preserving WiFi disk mode.
-+			if [ $(cat /sys/devices/soc:smem_db/wdisk_mode) == "1" ]
-+			then
-+				run_mass_storage &
-+			else
-+				run_nomass &
-+			fi
- 			;;
+        * )
+-           # Enable WiFi disk mode in normal boot.
+-           if [ $(cat /sys/devices/soc:smem_db/wdisk_mode) == "1" ]
+-           then
+-               run_mass_storage &
+-           else
+-               run_mass &
+-           fi
++           # Enable ADB in normal boot while preserving WiFi disk mode.
++           if [ $(cat /sys/devices/soc:smem_db/wdisk_mode) == "1" ]
++           then
++               run_mass_storage &
++           else
++               run_nomass &
++           fi
+        ;;
 ```
 
 #### Step 1.2: Create ADB Shell Symlink
-Qualcomm's `adbd` looks for the shell executable at `/system/bin/sh`. In standard Yocto, the shell is located at `/bin/sh`. You must create a symlink to bridge this.
-*Within your fakeroot extraction session*, run:
+
+Qualcomm's `adbd` looks for the shell executable at `/system/bin/sh`.
+In standard Yocto, the shell is located at `/bin/sh`. You must
+create a symlink to bridge this. *Within your fakeroot extraction
+session*, run:
+
 ```sh
 ln -s /bin/sh /path/to/extracted/rootfs/system/bin/sh
 ```
 
----
-
 ### Part 2: Enabling Other SIM Cards (Unhiding APN Settings)
-By default, the JMR1140 is carrier-locked to Jio. However, the modem itself is typically unlocked; the lock is enforced in the user interface and config files by hiding APN editing and forcing `jionet`.
+
+By default the JMR1140 is carrier-locked to Jio. The lock is enforced
+in the Web UI and config files by hiding APN editing and forcing
+`jionet`; the modem itself is typically already unlocked.
 
 #### Step 2.1: Unhide APN Fields in Web UI
-Open [WEBSERVER/www/setting/QCMAP_LTE.html](file:///tmp/jiofi_unlock_repack/rootfs/WEBSERVER/www/setting/QCMAP_LTE.html) and locate the `session_level == 3` (user login level) code block around line 166:
+
+Open `WEBSERVER/www/setting/QCMAP_LTE.html` on the extracted rootfs
+and locate the `session_level == 3` (user login level) code block
+around line 166:
 
 ```diff
- 					//Default APN
--					document.getElementById('H_default_apn').style.display = "none";
--					document.getElementById('Table_Apn_network').style.display = "none";
-+					document.getElementById('H_default_apn').style.display = "block";
-+					document.getElementById('Table_Apn_network').style.display = "block";
- 					//Multiple APN
--					document.getElementById('H_MultiAPN').style.display = "none";
--					document.getElementById('Table_MultiAPN').style.display = "none";
-+					document.getElementById('H_MultiAPN').style.display = "block";
-+					document.getElementById('Table_MultiAPN').style.display = "block";
+                    //Default APN
+-                   document.getElementById('H_default_apn').style.display = "none";
+-                   document.getElementById('Table_Apn_network').style.display = "none";
++                   document.getElementById('H_default_apn').style.display = "block";
++                   document.getElementById('Table_Apn_network').style.display = "block";
+                    //Multiple APN
+-                   document.getElementById('H_MultiAPN').style.display = "none";
+-                   document.getElementById('Table_MultiAPN').style.display = "none";
++                   document.getElementById('H_MultiAPN').style.display = "block";
++                   document.getElementById('Table_MultiAPN').style.display = "block";
 ```
 
 #### Step 2.2: Change Default APN to Generic
-Open [etc/mobileap_cfg.xml](file:///tmp/jiofi_unlock_repack/rootfs/etc/mobileap_cfg.xml) and change the default APN from Jio's to the generic APN used by other carriers:
+
+Open `etc/mobileap_cfg.xml` on the extracted rootfs and change the
+default APN from Jio's to the generic APN used by other carriers:
 
 ```diff
- 			<APN4NetworkAttach>1</APN4NetworkAttach>
--			<APN>jionet</APN>
-+			<APN>internet</APN>
+        <APN4NetworkAttach>1</APN4NetworkAttach>
+-       <APN>jionet</APN>
++       <APN>internet</APN>
 ```
-Once flashed, you can insert another SIM card, log into the Web UI, and manually configure any carrier APN via the newly visible LTE settings page.
+
+Once flashed, you can insert another SIM card, log into the Web UI,
+and manually configure any carrier APN via the newly visible LTE
+settings page.
