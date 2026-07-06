@@ -59,16 +59,15 @@ All images here are built from the original stock firmware (`firmware/mdm9607-sy
 ### `mdm9607-sysfs-repeater-ssh-busybox.ubi` ⭐ Recommended
 - **Type:** WiFi Repeater + SSH + Busybox + Battery LED
 - **Based on:** `mdm9607-sysfs-repeater-patched.ubi`
-- **SHA-256:** `b286f9e4007e6c57ec1f73b1eb2bfa1cdb439529395647d66839a0b9c164f746`
+- **SHA-256:** `c26c20226ab5453defec065f46591ff75403e5c3b8e4bd3301912bdd2aefec98`
 - **Status:** ✅ Built
 - **Build script:** `system_patches/3_wifi_repeater/build_repeater_ssh_busybox_image.sh`
 - **Changes over base:**
   - Dropbear SSH 2022.82 (static musl) — background-safe init
   - Busybox 1.31.0 (static musl)
-  - Battery LED manager:
-    - **Charging:** blinks N times per minute based on % (1 blink = 10%)
-    - **Discharging:** Green (100–70%), Orange (70–50%), Red (50–20%), Blinking Red (20–0%)
-    - **Full / Idle:** White LED
+  - Battery LED manager (charge blink, discharge colour, white idle)
+  - Fixed battery CGI (correct sysfs path + µV→mV conversion)
+  - jiofetch system info tool (`/usr/bin/jiofetch`)
 
 ---
 

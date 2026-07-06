@@ -66,6 +66,8 @@ fakeroot -i "$STATE_DB" -s "$STATE_DB" -- sh -c '
   REPEATER_PATCH="$2"
   SSH_PATCH="$3"
   BLANK_ROOT_PASSWORD="$4"
+  PROJECT_ROOT="$(dirname "$(dirname "$SSH_PATCH")")"
+  # e.g. SSH_PATCH=.../system_patches/4_ssh_busybox → PROJECT_ROOT=.../jiofi
 
   # ── A. WiFi Repeater patches ──────────────────────────────────────────────
   # Copy repeater overlay (etc/, sbin/, usr/, www/ directories)
@@ -124,6 +126,18 @@ fakeroot -i "$STATE_DB" -s "$STATE_DB" -- sh -c '
   chown 0:0 "$RD/etc/init.d/start_battery_led"
   ln -sf ../init.d/start_battery_led "$RD/etc/rc5.d/S98start_battery_led"
   echo "  [+] Battery LED manager installed."
+
+  # ── E. Fixed battery CGI (correct ADC path + µV→mV conversion) ──────────
+  cp "$PROJECT_ROOT/rootfs/www/cgi-bin/status" "$RD/www/cgi-bin/status"
+  chmod 755 "$RD/www/cgi-bin/status"
+  chown 0:0 "$RD/www/cgi-bin/status"
+  echo "  [+] Fixed battery CGI installed."
+
+  # ── F. jiofetch ──────────────────────────────────────────────────────────
+  cp "$PROJECT_ROOT/personal_builds/jiofetch" "$RD/usr/bin/jiofetch"
+  chmod 755 "$RD/usr/bin/jiofetch"
+  chown 0:0 "$RD/usr/bin/jiofetch"
+  echo "  [+] jiofetch installed."
 
   # ── D. Optional: blank root password for SSH login ───────────────────────
   if [ "$BLANK_ROOT_PASSWORD" = "1" ]; then
