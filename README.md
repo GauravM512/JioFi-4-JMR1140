@@ -121,7 +121,7 @@ Each document below covers one specific audience and topic — start from the on
 
 * **Will this void my warranty?** Yes — flashing custom firmware is not supported by Reliance Jio. The stock firmware is preserved at [`firmware/mdm9607-sysfs.ubi`](firmware/mdm9607-sysfs.ubi) so you can revert at any time.
 * **Can I unlock ADB without flashing anything?** Yes — the OEM firmware has undocumented AT handlers (`AT%DBGMODE=1`, `AT%DBGUSBSET=1`) that dynamically activate ADB over the serial COM port. See **[`REVERSE_ENGINEERING.md` § 2](REVERSE_ENGINEERING.md#2-adb-oem-lock--bypass)** for the details.
-* **Where do I get the firmware upgrade tool?** The official AMTelecom download pages are delisted. Community mirror: 👉 **[JMR1140 Drivers and Flasher Tools](https://spacebyte.in/drive/s/uCVx8f0br9B78IR8bZZtsels6SzexX)**.
+* **Where do I get the firmware upgrade tool?** The official AMTelecom download pages are delisted. Community mirror: 👉 **[JMR1140 Drivers and Flasher Tools](https://drive.google.com/drive/u/0/folders/1wrLRm-8vgX0-f2AJqPw5cUjbzf2T43mI)**.
 
 ---
 

@@ -98,6 +98,6 @@ In Wi-Fi Repeater Mode, the **RSSI LED** is used to convey device status:
 ## 5. Resources & Flash Tools Mirror
 
 Because official AMTelecom links are delisted:
-* **Upgrade Tools & Qualcomm Drivers**: Verified mirror at **[Spacebyte JMR1140 Drive](https://spacebyte.in/drive/s/uCVx8f0br9B78IR8bZZtsels6SzexX)**.
+* **Upgrade Tools & Qualcomm Drivers**: Verified mirror at **[JMR1140 Drive](https://drive.google.com/drive/u/0/folders/1wrLRm-8vgX0-f2AJqPw5cUjbzf2T43mI)**.
 * **Modem Backups & EDL recovery**: 
   * **To dump/backup stock partitions**: Enable temporary ADB via serial COM AT command line injection (`AT%DBGMODE=1` & `AT%DBGUSBSET=1`), then boot the device into EDL mode by running `adb reboot edl`. You can then dump/read your partitions using QPST/QFIL or open-source QDL tools.
