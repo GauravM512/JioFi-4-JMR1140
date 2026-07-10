@@ -139,6 +139,13 @@ fakeroot -i "$STATE_DB" -s "$STATE_DB" -- sh -c '
   chown 0:0 "$RD/usr/bin/jiofetch"
   echo "  [+] jiofetch installed."
 
+  # ── G. sy6923 charger fix (PRESENT=0 boot bug) ───────────────────────────
+  cp "$PROJECT_ROOT/personal_builds/fix_charger" "$RD/etc/init.d/fix_charger"
+  chmod 755 "$RD/etc/init.d/fix_charger"
+  chown 0:0 "$RD/etc/init.d/fix_charger"
+  ln -sf ../init.d/fix_charger "$RD/etc/rc5.d/S01fix_charger"
+  echo "  [+] sy6923 charger fix installed."
+
   # ── D. Optional: blank root password for SSH login ───────────────────────
   if [ "$BLANK_ROOT_PASSWORD" = "1" ]; then
     sed -i "s/^root:[^:]*:/root::/" "$RD/etc/shadow"
