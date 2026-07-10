@@ -42,7 +42,9 @@ Each image's SHA-256, what changes are baked in, and what to expect after flashi
 * The JioFi JMR1140 itself (battery removed is fine — it runs from USB alone).
 * A micro-USB cable.
 * Either a **Windows PC** *or* `adb` + `fastboot` installed on Linux/macOS.
-* The **community-mirrored firmware upgrade tool** + USB driver. The official AMTelecom support download pages are delisted, so the verified replacement is at 👉 **[JMR1140 Drivers and Flasher Tools Mirror](https://spacebyte.in/drive/s/uCVx8f0br9B78IR8bZZtsels6SzexX)**.
+* The **community-mirrored firmware upgrade tool** + USB driver. The official AMTelecom support download pages are delisted. Community mirrors:
+  * 👉 **[JMR1140 Drivers and Flasher Tools (Google Drive)](https://drive.google.com/drive/u/0/folders/1wrLRm-8vgX0-f2AJqPw5cUjbzf2T43mI)**
+  * 👉 **[JMR1140 Drivers and Flasher Tools (MediaFire)](https://www.mediafire.com/file/wr5t5xmtph4bobb/JioWiFi.rar)**
 
 ### Option A — Windows tool (recommended for first-time install / no ADB yet)
 
@@ -121,7 +123,9 @@ Each document below covers one specific audience and topic — start from the on
 
 * **Will this void my warranty?** Yes — flashing custom firmware is not supported by Reliance Jio. The stock firmware is preserved at [`firmware/mdm9607-sysfs.ubi`](firmware/mdm9607-sysfs.ubi) so you can revert at any time.
 * **Can I unlock ADB without flashing anything?** Yes — the OEM firmware has undocumented AT handlers (`AT%DBGMODE=1`, `AT%DBGUSBSET=1`) that dynamically activate ADB over the serial COM port. See **[`REVERSE_ENGINEERING.md` § 2](REVERSE_ENGINEERING.md#2-adb-oem-lock--bypass)** for the details.
-* **Where do I get the firmware upgrade tool?** The official AMTelecom download pages are delisted. Community mirror: 👉 **[JMR1140 Drivers and Flasher Tools](https://drive.google.com/drive/u/0/folders/1wrLRm-8vgX0-f2AJqPw5cUjbzf2T43mI)**.
+* **Where do I get the firmware upgrade tool?** The official AMTelecom download pages are delisted. Community mirrors:
+  * 👉 **[JMR1140 Drivers and Flasher Tools (Google Drive)](https://drive.google.com/drive/u/0/folders/1wrLRm-8vgX0-f2AJqPw5cUjbzf2T43mI)**
+  * 👉 **[JMR1140 Drivers and Flasher Tools (MediaFire)](https://www.mediafire.com/file/wr5t5xmtph4bobb/JioWiFi.rar)**
 
 ---
 
