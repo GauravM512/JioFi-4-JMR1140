@@ -1,5 +1,5 @@
 42d165e44d2d219c86e221fe61773b997db3ec56e0e08e1ddececc9d4f7bac95  firmware/mdm9607-sysfs.ubi
 b933d5a76ad5696e63caa30621a1774efb887eb6b1ceff8f4698534e79012ca3  patched/mdm9607-sysfs-stock-repacked-v2.ubi
 6624fac352523664ff29266e0e48410584f3b7ee9d75a981e74934d50d62788f  patched/mdm9607-sysfs-adb-shelllink-v2.ubi
-291b8882255d99be05cac550943fffc0acf49af46e8708be6dd40a4bef2e1bc2  patched/mdm9607-sysfs-unlocked-apn.ubi
+ab2f9d78418f8463196af007ae629ed343ba8c7e8d6fc56f3cf9bba20e1f6071  patched/mdm9607-sysfs-unlocked-apn-adb.ubi
 51fdade3aa4f316666367d085e8b989bd22d0c7c523486fa3314e1f7bef56755  patched/rtl8189es-custom.ko

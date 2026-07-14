@@ -14,14 +14,6 @@ All images here are built from the original stock firmware (`firmware/mdm9607-sy
 
 ---
 
-### `mdm9607-sysfs-unlocked-apn.ubi`
-- **Type:** Stock + APN unlock
-- **SHA-256:** `291b8882255d99be05cac550943fffc0acf49af46e8708be6dd40a4bef2e1bc2`
-- **Status:** ✅ Boots confirmed
-- **Changes:** APN restriction removed from `mobileap_cfg.xml`
-
----
-
 ### `mdm9607-sysfs-adb-shelllink-v2.ubi`
 - **Type:** Stock + ADB shell
 - **SHA-256:** `6624fac352523664ff29266e0e48410584f3b7ee9d75a981e74934d50d62788f`
@@ -29,6 +21,17 @@ All images here are built from the original stock firmware (`firmware/mdm9607-sy
 - **Changes:**
   - USB composition `02e1` enables ADB
   - `/system/bin/sh → /bin/sh` symlink for `adb shell`
+
+---
+
+### `mdm9607-sysfs-unlocked-apn-adb.ubi`
+- **Type:** Stock + APN unlock + ADB shell
+- **SHA-256:** `ab2f9d78418f8463196af007ae629ed343ba8c7e8d6fc56f3cf9bba20e1f6071`
+- **Status:** ✅ Built (experimental — testers wanted, see callout in `README.md`)
+- **Changes:**
+  - APN restriction removed from `mobileap_cfg.xml` (default APN ⇒ `internet`)
+  - USB composition `02e1` enables ADB (inherited from `adb-shelllink-v2`)
+  - `/system/bin/sh → /bin/sh` symlink for `adb shell` (inherited from `adb-shelllink-v2`)
 
 ---
 

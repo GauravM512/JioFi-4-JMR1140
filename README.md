@@ -28,12 +28,12 @@ Pick the path that matches what you want from the device. Every image below is *
 | I want to … | Flash this image | Read first |
 |---|---|---|
 | Get a permanent **root ADB shell** over USB (no other changes) | [`patched/mdm9607-sysfs-adb-shelllink-v2.ubi`](patched/README.md#mdm9607-sysfs-adb-shelllink-v2ubi) | [`patched/README.md`](patched/README.md) |
-| **Use any carrier's SIM** (Airtel, Vi, BSNL, …) *and* get root ADB | [`patched/mdm9607-sysfs-unlocked-apn.ubi`](patched/README.md#mdm9607-sysfs-unlocked-apnubi) | The APN-carrier section of [`patched/README.md`](patched/README.md) — **⚠️ experimental, testers wanted (see callout below)** |
+| **Use any carrier's SIM** (Airtel, Vi, BSNL, …) *and* get root ADB | [`patched/mdm9607-sysfs-unlocked-apn-adb.ubi`](patched/README.md#mdm9607-sysfs-unlocked-apn-adbubi) | The APN-carrier section of [`patched/README.md`](patched/README.md) — **⚠️ experimental, testers wanted (see callout below)** |
 | **Turn the JioFi into a Wi-Fi Extender/Repeater** *and* keep root ADB | [`patched/mdm9607-sysfs-repeater-patched.ubi`](patched/README.md#mdm9607-sysfs-repeater-patchedubi) | The full repeater write-up in [`patched/README.md`](patched/README.md) |
 
 Each image's SHA-256, what changes are baked in, and what to expect after flashing are documented in **[`patched/patch.md`](patched/patch.md)**.
 
-> **🧪 Testers wanted for the all-SIM APN-unlock build.** [`mdm9607-sysfs-unlocked-apn.ubi`](patched/README.md#mdm9607-sysfs-unlocked-apnubi) boots ✅, but **non-Jio LTE attach** (Airtel, Vi, BSNL, MTNL, Jio postpaid) on each supported band (B3 / B5 / B40) has only been independently verified for Jio so far. If you can test a non-Jio carrier, please share: your carrier, the APN string you set, and the output of `adb shell logcat -d | grep -iE 'apn|pdp|qcmap' | tail -50`. Until at least two independent reports cover each major Indian carrier, treat this build as **experimental** — your test reports are what will promote it to stable.
+> **🧪 Testers wanted for the all-SIM APN + ADB build.** [`mdm9607-sysfs-unlocked-apn-adb.ubi`](patched/README.md#mdm9607-sysfs-unlocked-apn-adbubi) boots ✅ and gives `adb shell`, but **non-Jio LTE attach** (Airtel, Vi, BSNL, MTNL, Jio postpaid) on each supported band (B3 / B5 / B40) has only been independently verified for Jio so far. If you can test a non-Jio carrier, please share: (a) whether `adb shell` returns a root prompt, (b) your carrier, (c) the APN string you set, and (d) the output of `adb shell logcat -d | grep -iE 'apn|pdp|qcmap' | tail -50`. Until at least two independent reports cover each major Indian carrier, treat this build as **experimental** — your test reports are what will promote it to stable.
 
 ---
 

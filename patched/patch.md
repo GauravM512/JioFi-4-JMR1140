@@ -13,7 +13,7 @@ geometry** (image sequence `907419386`, see
 | File | Purpose | Tested on device |
 |------|---------|------------------|
 | [`mdm9607-sysfs-repeater-patched.ubi`](#4-full-repeater-adb--openlumi-wi-fi-driver--ap-sta) | Full Wi-Fi repeater / extender + permanent ADB | ✅ |
-| [`mdm9607-sysfs-unlocked-apn.ubi`](#3-sim-unlocked--adb-enabled-airtelvietc) | Carrier unlock (generic APN) + permanent ADB | ✅ |
+| [`mdm9607-sysfs-unlocked-apn-adb.ubi`](#3-sim-unlocked--adb-enabled-airtelvietc) | Carrier unlock (generic APN) + permanent ADB | ✅ |
 | [`mdm9607-sysfs-adb-shelllink-v2.ubi`](#2-root-adb-shell-enabled-recommended-base) | Stock firmware + permanent ADB shell only | ✅ |
 | [`mdm9607-sysfs-stock-repacked-v2.ubi`](#1-stock-repacked-safe-reference) | Stock repack (sanity check, no edits) | ✅ |
 | [`rtl8189es-custom.ko`](#rtl8189es-customko) | OpenLumi-derived `rtl8189es` driver module | ✅ |
@@ -28,7 +28,7 @@ Image hierarchy (least → most features):
 ```
 mdm9607-sysfs-stock-repacked-v2.ubi
         ⊂ mdm9607-sysfs-adb-shelllink-v2.ubi
-                ⊂ mdm9607-sysfs-unlocked-apn.ubi
+                ⊂ mdm9607-sysfs-unlocked-apn-adb.ubi
                         ⊂ mdm9607-sysfs-repeater-patched.ubi
 ```
 
@@ -67,11 +67,11 @@ mdm9607-sysfs-stock-repacked-v2.ubi
 ### 3. SIM Unlocked & ADB Enabled (Airtel/Vi/etc.)
 
 * **Filename:**
-  [`mdm9607-sysfs-unlocked-apn.ubi`](mdm9607-sysfs-unlocked-apn.ubi)
+  [`mdm9607-sysfs-unlocked-apn-adb.ubi`](mdm9607-sysfs-unlocked-apn-adb.ubi)
 * **SHA-256:**
-  `291b8882255d99be05cac550943fffc0acf49af46e8708be6dd40a4bef2e1bc2`
-* **Description:** Bypasses the Jio carrier lock and keeps the
-  permanent ADB shell from the previous image.
+  `ab2f9d78418f8463196af007ae629ed343ba8c7e8d6fc56f3cf9bba20e1f6071`
+* **Description:** Bypasses the Jio carrier lock and inherits the
+  permanent ADB shell from `adb-shelllink-v2` (see Section 2 above).
   * **Web UI patch:** Replaces `display: none` with `display: block`
     in the `session_level == 3` block of
     `WEBSERVER/www/setting/QCMAP_LTE.html`. After logging in as
@@ -79,9 +79,11 @@ mdm9607-sysfs-stock-repacked-v2.ubi
     **Multiple APN** configuration tables become visible.
   * **APN default:** Replaces `<APN>jionet</APN>` with
     `<APN>internet</APN>` in `etc/mobileap_cfg.xml`.
+  * **ADB shell:** Inherits the `02e1` USB-composition patch and
+    `/system/bin/sh → /bin/sh` symlink from `adb-shelllink-v2`.
 * **Purpose:** Drop in any other carrier's SIM (Airtel, Vi, BSNL, …)
   and configure the matching APN from the Web UI without further
-  in-place edits.
+  in-place edits, with `adb shell` always available for triage.
 
 ### 4. Full Repeater (ADB + OpenLumi Wi-Fi Driver + AP-STA)
 
@@ -247,7 +249,7 @@ and copy `rtl8189es-custom.ko` over
    fastboot flash system patched/mdm9607-sysfs-repeater-patched.ubi
 
    # Carrier unlock only:
-   fastboot flash system patched/mdm9607-sysfs-unlocked-apn.ubi
+   fastboot flash system patched/mdm9607-sysfs-unlocked-apn-adb.ubi
 
    # ADB shell only:
    fastboot flash system patched/mdm9607-sysfs-adb-shelllink-v2.ubi
