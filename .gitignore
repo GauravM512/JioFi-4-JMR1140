@@ -44,3 +44,5 @@ Thumbs.db
 *.swo
 .vscode/
 .idea/
+
+firmware_reverse_engineering
